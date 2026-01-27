@@ -1,16 +1,13 @@
 import requests
 from pathlib import Path
+import pandas as pd
+import re
 
-def download_first_available(urls, output_path, timeout=15):
-    output_path = Path(output_path)
-
-    for url in urls:
+def download_first_available(url, output_path, timeout=15):
+    if not pd.isna(url):
         try:
             with requests.get(url, stream=True, timeout=timeout) as r:
                 r.raise_for_status()
-                if "application/pdf" not in r.headers.get("Content-Type", "").lower():
-                    continue
-
                 with open(output_path, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         if chunk:
@@ -26,12 +23,20 @@ def download_first_available(urls, output_path, timeout=15):
     return False
 
 
-download_links = [
-    "https://www.mdpi.com/2077-0383/15/2/528/pdf",
-    "https://example.com/backup.pdf"
-]
+def sanitize_filename(name: str, default='file') -> str:
+    name = re.sub(r'[\\/:*?"<>|]', '', name)
+    name = re.sub(r'\s+', '_', name)
+    name = re.sub(r'_+', '_', name)
+    name = name.strip('._')
 
-download_first_available(
-    urls=download_links,
-    output_path="Saudi_Low_Back_Pain_Guideline_2022.pdf"
-)
+    return name if name else default
+
+
+df = pd.read_csv("links.csv")
+rows = list(zip(df["title"],df["link"]))
+
+for idx, row in enumerate(rows):
+    download_first_available(
+        url=row[1],
+        output_path=Path(r"C:\Users\Administrator\Desktop\crawling\crawling\concensus_pdfs") / f"{sanitize_filename(row[0])}.pdf"
+    )
